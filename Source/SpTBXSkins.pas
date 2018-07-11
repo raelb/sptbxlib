@@ -456,6 +456,7 @@ type
   TSpPrintWindow = function(Hnd: HWND; HdcBlt: HDC; nFlags: UINT): BOOL; stdcall;
 
 { Themes }
+function IsDelphiStyle: Boolean;
 function SpTBXThemeServices: TSpTBXThemeServices;
 function SkinManager: TSpTBXSkinManager;
 function CurrentSkin: TSpTBXSkinOptions;
@@ -559,6 +560,11 @@ var
 
 //WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM
 { Themes }
+
+function IsDelphiStyle: Boolean;
+begin
+  Result := SkinManager.GetSkinType = sknDelphiStyle;
+end;
 
 function SpTBXThemeServices: TSpTBXThemeServices;
 begin

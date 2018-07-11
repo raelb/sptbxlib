@@ -417,12 +417,14 @@ begin
   // Form doesn't have DFM info
   inherited CreateNew(nil);
 
+  inherited BorderStyle := bsNone;  // MOD_RB;
   Visible := False;
   SetBounds(0, 0, 0, 0);
   FFormPopupMenu := AFormPopupMenu;
   FAnimation := GetSysAnimation;
   FAnimationDirection := [];
-  FShowShadows := True;
+  //FShowShadows := True;
+  FShowShadows := False;    // MOD_RB
   FSizeGrip := TSpTBXPopupSizeGrip.Create(Self);
   FSizeGrip.Parent := Self;
 end;
@@ -440,8 +442,9 @@ begin
 
       ExStyle := WS_EX_TOPMOST or WS_EX_TOOLWINDOW;
       WindowClass.Style := WindowClass.Style or CS_SAVEBITS;
-      if IsWindowsXP then
-        WindowClass.Style := WindowClass.Style or CS_DROPSHADOW;
+
+      //if IsWindowsXP then
+      //  WindowClass.Style := WindowClass.Style or CS_DROPSHADOW; // MOD_RB
     end;
 end;
 

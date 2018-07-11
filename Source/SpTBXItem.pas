@@ -1676,12 +1676,17 @@ var
   SpStockHintBitmap: TBitmap;
   MDIButtonsImgList: TImageList = nil;
   SpTBXHintWindowClass: THintWindowClass = TBitmapHint;
+  PaintToolbarBorders: Boolean = True;
 
 const
   CDefaultToolbarBorderSize = 2;       // Default size of Floating Toolbar borders
   crSpTBXNewHandPoint = 100;          // Cursor ID to replace crHandPoint for IDC_HAND
   crSpTBXCustomization = 101;         // Cursor ID used for item D&D customization accepted
   crSpTBXCustomizationCancel = 102;   // Cursor ID used for item D&D customization cancelled
+
+// MOD_RB
+var
+  SpTBXUseDisabledIconCorrection: Boolean = False; // previously was True
 
 implementation
 
@@ -1694,7 +1699,7 @@ uses
   System.UITypes,
   {$IFEND}
   ComCtrls, CommCtrl, ShellApi, DwmApi,
-  TB2Anim, TB2Common;
+  TB2Anim, TB2Common, Vcl.Dialogs, TraceTool;
 
 const
   ROP_DSPDxax = $00E20746;
@@ -2341,7 +2346,8 @@ procedure SpDrawXPMenuItem(ACanvas: TCanvas; ARect: TRect; ItemInfo: TSpTBXMenuI
         if ItemInfo.IsDesigning then
           SpDrawRectangle(ACanvas, ARect, 2, clBtnShadow, clBtnShadow, clNone, clNone, ForceRectBorders)
         else
-          if ItemInfo.IsOnMenuBar then begin
+          if ItemInfo.IsOnMenuBar then
+          begin
             if SpIsWinVistaOrUp or (ItemInfo.SkinType = sknDelphiStyle) then begin
               if ItemInfo.State <> sknsNormal then
                 CurrentSkin.PaintThemedElementBackground(ACanvas, ARect, skncMenuBarItem, ItemInfo.State);
@@ -2351,7 +2357,13 @@ procedure SpDrawXPMenuItem(ACanvas: TCanvas; ARect: TRect; ItemInfo: TSpTBXMenuI
                 SpFillRect(ACanvas, ARect, clHighlight);
           end
           else
-            SpDrawXPToolbarButton(ACanvas, ARect, ItemInfo.State, ItemInfo.ComboPart);
+          begin
+            // RB_MOD
+            if ItemInfo.State in [sknsHotTrack, sknsPushed, sknsChecked, sknsCheckedAndHotTrack] then
+              SpDrawXPToolbarButton(ACanvas, ARect, ItemInfo.State, ItemInfo.ComboPart)
+            //else if ItemInfo.ComboPart = cpSplitRight then
+            //  SpDrawXPToolbarButton(ACanvas, ARect, ItemInfo.State, ItemInfo.ComboPart);
+          end;
       sknSkin:
         if ItemInfo.IsOpen and CurrentSkin.OfficePopup then begin
           // Paints skncOpenToolbarItem skin, hide the bottom border
@@ -2591,12 +2603,12 @@ begin
       SpDrawIconShadow(ACanvas, ARect, ImageList, ImageIndex);
       OffsetRect(ARect, -2, -2);
     end;
-    SpDrawImageList(ACanvas, ARect, ImageList, ImageIndex, ItemInfo.Enabled, True);
+    SpDrawImageList(ACanvas, ARect, ImageList, ImageIndex, ItemInfo.Enabled, SpTBXUseDisabledIconCorrection);
   end
   else begin
     if ItemInfo.IsSunkenCaption then
       OffsetRect(ARect, 1, 1);
-    SpDrawImageList(ACanvas, ARect, ImageList, ImageIndex, ItemInfo.Enabled, True);
+    SpDrawImageList(ACanvas, ARect, ImageList, ImageIndex, ItemInfo.Enabled, SpTBXUseDisabledIconCorrection);
   end;
 end;
 
@@ -2972,7 +2984,25 @@ begin
     end;
     // Draw the Dock background
     if Toolbar.CurrentDock is TSpTBXDock then
-      TSpTBXDock(Toolbar.CurrentDock).DrawBackground(ACanvas.Handle, R);
+    begin
+      if IsDelphiStyle then
+      begin
+        if Toolbar.Tag = 0 then    // MOD_RB_TB
+        begin
+          if TSpTBXDock(Toolbar.CurrentDock).Tag = 0 then
+            TSpTBXDock(Toolbar.CurrentDock).DrawBackground(ACanvas.Handle, R)
+          else                 // Paint Toolbar how we usually paint Dock...
+            SpDrawXPDock(ACanvas, R, TSpTBXDock(Toolbar.CurrentDock).Position in [dpLeft, dpRight])
+        end
+        else
+        begin        // This is for painting the Toolbar in a specific color
+          ACanvas.Brush.Color := SpLighten(CurrentSkin.GetThemedSystemColor(clBtnFace), -32); // or some other adjustment e.g. Darken
+          ACanvas.FillRect(R);
+        end;
+      end
+      else
+        TSpTBXDock(Toolbar.CurrentDock).DrawBackground(ACanvas.Handle, R);
+    end;
 
     DrawSkinBody := not (Toolbar.CurrentDock.BackgroundOnToolbars and SpIsDockUsingBitmap(Toolbar.CurrentDock));
   end
@@ -4604,8 +4634,8 @@ begin
       P.X := (ItemInfo.ComboRect.Left + ItemInfo.ComboRect.Right) div 2 - 1;
       P.Y := (ItemInfo.ComboRect.Top + ItemInfo.ComboRect.Bottom) div 2 - 1;
       // Don't draw the arrow if is a split button in Windows, it's
-      // painted by the Windows theme.
-      if not (ItemInfo.IsSplit and (ItemInfo.SkinType in [sknWindows, sknDelphiStyle])) then begin
+      // painted by the Windows theme.                                 RB_MOD
+      if not (ItemInfo.IsSplit and (ItemInfo.SkinType in [sknWindows{, sknDelphiStyle}])) then begin
         DropDownC := TextC;
         if ItemInfo.IsSplit and ItemInfo.Enabled then
           DropDownC := GetTextColor(ItemInfo.ComboState);
@@ -6011,6 +6041,12 @@ begin
       if UsingBitmap then
         inherited
       else
+        if (Self.Tag <> 0) and IsDelphiStyle then // MOD_RB_TB
+        begin
+          ACanvas.Brush.Color := SpLighten(CurrentSkin.GetThemedSystemColor(clBtnFace), -10);
+          ACanvas.FillRect(DrawRect);
+        end
+        else
         if Color = clNone then
           SpDrawXPDock(ACanvas, DrawRect, Position in [dpLeft, dpRight])
         else begin
